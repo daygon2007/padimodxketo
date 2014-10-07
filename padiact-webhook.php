@@ -11,6 +11,69 @@
  *
  */
 
+// function that POSTS the lead data to a Google spreadsheet as a fallback for fail cURLs.
+if (!function_exists('postToGoogleDoc')) {
+  function postToGoogleDoc() {
+    
+    // use global variables
+    global $email, $firstName, $pillarOfInterest, $leadSpecificSource, $braceDataPostUrl;
+    
+    // set up POST array
+    $gdocLeadArray = array(
+      "email" => $email,
+      "firstName" => $firstName,
+      "lastName" => $lastName,
+      "Date" => date('n/j/y')
+    );
+    
+    // POST data to Brace Data API to add to Google spreadsheet
+    $gdocResult = curlHelper(array(
+      CURLOPT_URL => $braceDataPostUrl,
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_CUSTOMREQUEST => "POST",
+      CURLOPT_POSTFIELDS => $gdocLeadArray
+    ));
+    
+  }
+}
+
+// helper function so I don't have to repeat the same cURL code over and over
+if (!function_exists('curlHelper')){
+  function curlHelper($options) {
+    
+    global $modx;
+    
+    $modx->log(modx::LOG_LEVEL_DEBUG,"[Padiact Webhook] cURL helper called");
+    
+    // initiate cURL
+    $curl = curl_init();
+    
+    // set cURL options
+    curl_setopt_array($curl, $options);
+    
+    // execute cURL and get info
+    $response = curl_exec($curl);
+    $info = curl_getinfo($curl);
+    
+    // set 'success' variable to false if there are cURL errors
+    $success = (!curl_errno($curl) ? true : false);
+    
+    // create object with cURL status, response, and info
+    $return = (object) array(
+      "success" => $success,
+      "result" => json_decode($response),
+      "info" => $info
+    );
+    
+    // close cURL
+    curl_close($curl);
+    
+    // return object
+    return $return;
+    
+  }
+}
+
 // if HTTP POST request is received
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   
@@ -134,60 +197,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
   }
-  
-}
-
-// function that POSTS the lead data to a Google spreadsheet as a fallback for fail cURLs.
-function postToGoogleDoc() {
-  
-  // use global variables
-  global $email, $firstName, $lastName, $braceDataPostUrl;
-  
-  // set up POST array
-  $gdocLeadArray = array(
-    "email" => $email,
-    "FirstName" => $firstName,
-    "LastName" => $lastName,
-    "Date" => date('n/j/y')
-  );
-  
-  // POST data to Brace Data API to add to Google spreadsheet
-  $gdocResult = curlHelper(array(
-    CURLOPT_URL => $braceDataPostUrl,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_CUSTOMREQUEST => "POST",
-    CURLOPT_POSTFIELDS => $gdocLeadArray
-  ));
-  
-}
-
-// helper function so I don't have to repeat the same cURL code over and over
-function curlHelper($options) {
-  
-  // initiate cURL
-  $curl = curl_init();
-  
-  // set cURL options
-  curl_setopt_array($curl, $options);
-  
-  // execute cURL and get info
-  $response = curl_exec($curl);
-  $info = curl_getinfo($curl);
-  
-  // set 'success' variable to false if there are cURL errors
-  $success = (!curl_errno($curl) ? true : false);
-  
-  // create object with cURL status, response, and info
-  $return = (object) array(
-    "success" => $success,
-    "result" => json_decode($response),
-    "info" => $info
-  );
-  
-  // close cURL
-  curl_close($curl);
-  
-  // return object
-  return $return;
   
 }
